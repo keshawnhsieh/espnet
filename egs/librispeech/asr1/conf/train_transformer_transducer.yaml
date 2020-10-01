@@ -1,0 +1,56 @@
+n-iter-processes: 0
+#train-dtype: O2
+
+# minibatch related
+# batch-bins: 15000000
+batch-bins: 3750000
+#batch-bins: 75000
+#maxlen-in: 800
+#maxlen-out: 150
+
+# optimization related
+criterion: loss
+early-stop-criterion: "validation/main/loss"
+sortagrad: 0
+opt: noam
+epochs: 120
+patience: 0
+accum-grad: 4
+grad-clip: 5.0
+weight-decay: 1e-6
+
+# transformer related
+transformer-lr: 10.0
+transformer-warmup-steps: 25000
+
+# network architecture
+## encoder related
+etype: transformer
+transformer-enc-input-layer: vgg2l
+enc-block-arch:
+  - type: transformer
+    d_hidden: 512
+    d_ff: 1024
+    heads: 8
+    att-dropout-rate: 0.1
+enc-block-repeat: 18
+
+## decoder related
+dtype: transformer
+transformer-dec-input-layer: embed
+dec-block-arch:
+  - type: transformer
+    d_hidden: 512
+    d_ff: 1024
+    heads: 8
+    dropout-rate: 0.1
+    pos-dropout-rate: 0.1
+    att-dropout-rate: 0.1
+dec-block-repeat: 2
+## joint network related
+joint-dim: 256
+
+# transducer related
+#mtlalpha: 1.0 # mtlalpha should be set to 1.0 (CTC) to use transducer
+rnnt-mode: 'rnnt' # switch to 'rnnt-att' to use transducer with attention
+model-module: "espnet.nets.pytorch_backend.e2e_asr_transducer:E2E"

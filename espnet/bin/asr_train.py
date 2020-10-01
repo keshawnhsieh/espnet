@@ -514,6 +514,8 @@ def get_parser(parser=None, required=True):
     )
     parser.add_argument("--fbank-fmin", type=float, default=0.0, help="")
     parser.add_argument("--fbank-fmax", type=float, default=None, help="")
+
+    parser.add_argument("--streaming", type=strtobool, default=False,help="")
     return parser
 
 
@@ -611,6 +613,11 @@ def main(cmd_args):
 
     # train
     logging.info("backend = " + args.backend)
+
+    # hard code
+    from espnet.asr.pytorch_backend.asr_ddp import train
+    train(args)
+    return
 
     if args.num_spkrs == 1:
         if args.backend == "chainer":
