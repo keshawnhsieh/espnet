@@ -323,7 +323,7 @@ def dist_train(gpu, args):
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.model_module,
-                'state_dict': model.state_dict(),
+                'model': model.module.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }, filename=os.path.join(args.outdir, 'snapshot.ep.{}'.format(epoch)))
 
