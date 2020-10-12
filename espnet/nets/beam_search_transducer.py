@@ -156,7 +156,8 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
             if len(kept_most_prob) >= beam:
                 kept_hyps = kept_most_prob
                 break
-        timer.toc("utt frame")
+        if timer:
+            timer.toc("utt frame")
 
     if normscore:
         nbest_hyps = sorted(
@@ -164,7 +165,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
         )[:nbest]
     else:
         nbest_hyps = sorted(kept_hyps, key=lambda x: x.score, reverse=True)[:nbest]
-    timer.toc("utt total")
+    if timer: timer.toc("utt total")
     return [asdict(n) for n in nbest_hyps]
 
 
