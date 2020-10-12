@@ -599,7 +599,7 @@ class E2E(ASRInterface, torch.nn.Module):
 
         return hs.squeeze(0)
 
-    def recognize(self, x, recog_args, char_list=None, rnnlm=None):
+    def recognize(self, x, recog_args, char_list=None, rnnlm=None, timer=None):
         """Recognize input features.
 
         Args:
@@ -613,7 +613,11 @@ class E2E(ASRInterface, torch.nn.Module):
 
         """
         if "transformer" in self.etype:
+            if  timer:
+                timer.tic("enc")
             h = self.encode_transformer(x)
+            if  timer:
+                timer.toc("enc")
         else:
             h = self.encode_rnn(x)
 
@@ -622,7 +626,7 @@ class E2E(ASRInterface, torch.nn.Module):
         else:
             decoder = self.dec
 
-        params = [decoder, h, recog_args, rnnlm]
+        params = [decoder, h, recog_args, rnnlm, timer]
 
         nbest_hyps = search_interface(*params)
 

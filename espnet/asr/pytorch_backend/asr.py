@@ -988,11 +988,13 @@ def recog(args):
         else args.preprocess_conf,
         preprocess_args={"train": False},
     )
+    from espnet.utils.timing import Timer
 
     if args.batchsize == 0:
         with torch.no_grad():
             for idx, name in enumerate(js.keys(), 1):
                 logging.info("(%d/%d) decoding " + name, idx, len(js.keys()))
+                timer = Timer()
                 batch = [(name, js[name])]
                 feat = load_inputs_and_targets(batch)
                 feat = (
@@ -1001,7 +1003,9 @@ def recog(args):
                     else [feat[idx][0] for idx in range(model.num_encs)]
                 )
                 if args.ngpu == 1:
+                    timer.tic("data transfer")
                     feat = torch.from_numpy(feat).cuda()
+                    timer.toc("data transfer")
                 if args.streaming_mode == "window" and args.num_encs == 1:
                     logging.info(
                         "Using streaming recognizer with window size %d frames",
@@ -1052,8 +1056,16 @@ def recog(args):
                     )
                 else:
                     nbest_hyps = model.recognize(
-                        feat, args, train_args.char_list, rnnlm
+                        feat, args, train_args.char_list, rnnlm,timer
                     )
+                    # timing results
+                    if args.ngpu == 1:
+                        logging.info(
+                            "data transfer : %s, avg: %.4f" % (timer("data transfer"), timer.avg("data transfer")))
+                    logging.info("enc : %s, avg: %.4f" % (timer("enc"), timer.avg("enc")))
+                    logging.info("dec : %s, avg: %.4f " % (timer("dec"), timer.avg("dec")))
+                    logging.info("utt total : %s, avg: %.4f" % (timer("utt total"), timer.avg("utt total")))
+                    logging.info("utt frame : %s, avg: %.4f" % (timer("utt frame"), timer.avg("utt frame")))
                 new_js[name] = add_results_to_json(
                     js[name], nbest_hyps, train_args.char_list
                 )

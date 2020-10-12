@@ -69,7 +69,7 @@ def greedy_search(decoder, h, recog_args):
     return [asdict(hyp)]
 
 
-def default_beam_search(decoder, h, recog_args, rnnlm=None):
+def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     """Beam search implementation.
 
     Args:
@@ -96,8 +96,12 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None):
     kept_hyps = [Hypothesis(score=0.0, yseq=[decoder.blank], dec_state=dec_state)]
 
     cache = {}
+    if timer:
+        timer.tic("utt total")
 
     for hi in h:
+        if timer:
+            timer.tic("utt frame")
         hyps = kept_hyps
         kept_hyps = []
 
@@ -105,9 +109,13 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None):
             max_hyp = max(hyps, key=lambda x: x.score)
             hyps.remove(max_hyp)
 
+            if timer:
+                timer.tic("dec")
             y, state, lm_tokens = decoder.score(max_hyp, cache, init_tensor)
 
             ytu = F.log_softmax(decoder.joint(hi, y[0]), dim=-1)
+            if timer:
+                timer.toc("dec")
 
             top_k = ytu[1:].topk(beam_k, dim=-1) # exclude the choice of blank, reason of plus 1 shows below
 
@@ -148,6 +156,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None):
             if len(kept_most_prob) >= beam:
                 kept_hyps = kept_most_prob
                 break
+        timer.toc("utt frame")
 
     if normscore:
         nbest_hyps = sorted(
@@ -155,7 +164,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None):
         )[:nbest]
     else:
         nbest_hyps = sorted(kept_hyps, key=lambda x: x.score, reverse=True)[:nbest]
-
+    timer.toc("utt total")
     return [asdict(n) for n in nbest_hyps]
 
 
@@ -601,7 +610,7 @@ def nsc_beam_search(decoder, h, recog_args, rnnlm=None):
     return [asdict(n) for n in nbest_hyps]
 
 
-def search_interface(decoder, h, recog_args, rnnlm):
+def search_interface(decoder, h, recog_args, rnnlm, timer=None):
     """Select and run search algorithms.
 
     Args:
@@ -620,7 +629,7 @@ def search_interface(decoder, h, recog_args, rnnlm):
     if recog_args.beam_size <= 1:
         nbest_hyps = greedy_search(decoder, h, recog_args)
     elif recog_args.search_type == "default":
-        nbest_hyps = default_beam_search(decoder, h, recog_args, rnnlm)
+        nbest_hyps = default_beam_search(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "nsc":
         nbest_hyps = nsc_beam_search(decoder, h, recog_args, rnnlm)
     elif recog_args.search_type == "tsd":
