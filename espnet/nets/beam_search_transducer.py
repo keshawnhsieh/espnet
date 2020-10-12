@@ -109,10 +109,10 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None):
 
             ytu = F.log_softmax(decoder.joint(hi, y[0]), dim=-1)
 
-            top_k = ytu[1:].topk(beam_k, dim=-1)
+            top_k = ytu[1:].topk(beam_k, dim=-1) # exclude the choice of blank, reason of plus 1 shows below
 
             ytu = (
-                torch.cat((top_k[0], ytu[0:1])),
+                torch.cat((top_k[0], ytu[0:1])), # force add blank as an optional choice
                 torch.cat((top_k[1] + 1, blank_tensor)),
             )
 

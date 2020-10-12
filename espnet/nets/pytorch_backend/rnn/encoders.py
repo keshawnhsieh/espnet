@@ -149,12 +149,12 @@ class RNN(torch.nn.Module):
             prev_state = reset_backward_rnn_state(prev_state)
         ys, states = self.nbrnn(xs_pack, hx=prev_state)
         # ys: utt list of frame x cdim x 2 (2: means bidirectional)
-        ys_pad, ilens = pad_packed_sequence(ys, batch_first=True)
+        ys_pad, ilens = pad_packed_sequence(ys, batch_first=True) # ys_pad : (bsz , frame, cdim)
         # (sum _utt frame_utt) x dim
         projected = torch.tanh(
-            self.l_last(ys_pad.contiguous().view(-1, ys_pad.size(2)))
+            self.l_last(ys_pad.contiguous().view(-1, ys_pad.size(2))) # projected: (bsz * frame ,hdim)
         )
-        xs_pad = projected.view(ys_pad.size(0), ys_pad.size(1), -1)
+        xs_pad = projected.view(ys_pad.size(0), ys_pad.size(1), -1)# xs_pad : (bsz, frame, hdim)
         return xs_pad, ilens, states  # x: utt list of frame x dim
 
 
@@ -298,7 +298,7 @@ class Encoder(torch.nn.Module):
                 )
                 logging.info(typ.upper() + " without projection for encoder")
 
-    def forward(self, xs_pad, ilens, prev_states=None):
+    def forward(self, xs_pad, ilens, prev_states=None):# prev_state is used for streaming mode
         """Encoder forward
 
         :param torch.Tensor xs_pad: batch of padded input sequences (B, Tmax, D)

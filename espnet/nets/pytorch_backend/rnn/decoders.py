@@ -206,7 +206,7 @@ class Decoder(torch.nn.Module, ScorerInterface):
         )
 
         # initialization
-        c_list = [self.zero_state(hs_pad[0])]
+        c_list = [self.zero_state(hs_pad[0])] # hs_pad : (1, bsz, frame, hdim), c-> cell state , z->hidden state
         z_list = [self.zero_state(hs_pad[0])]
         for _ in six.moves.range(1, self.dlayers):
             c_list.append(self.zero_state(hs_pad[0]))
@@ -229,7 +229,7 @@ class Decoder(torch.nn.Module, ScorerInterface):
             if self.num_encs == 1:
                 att_c, att_w = self.att[att_idx](
                     hs_pad[0], hlens[0], self.dropout_dec[0](z_list[0]), att_w
-                )
+                ) # location based attention, input(enc h, dec h state, last att alpha) -> output(att context, att alpha)
             else:
                 for idx in range(self.num_encs):
                     att_c_list[idx], att_w_list[idx] = self.att[idx](
@@ -262,7 +262,7 @@ class Decoder(torch.nn.Module, ScorerInterface):
             else:
                 z_all.append(self.dropout_dec[-1](z_list[-1]))  # utt x (zdim)
 
-        z_all = torch.stack(z_all, dim=1).view(batch * olength, -1)
+        z_all = torch.stack(z_all, dim=1).view(batch * olength, -1) # ? z_all : (fsz, bsz, dunits), after stack: (bsz, fsz, dunits)
         # compute loss
         y_all = self.output(z_all)
         if LooseVersion(torch.__version__) < LooseVersion("1.0"):
