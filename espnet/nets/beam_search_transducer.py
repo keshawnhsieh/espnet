@@ -33,7 +33,7 @@ class Hypothesis:
     lm_scores: torch.Tensor = None
 
 
-def greedy_search(decoder, h, recog_args):
+def greedy_search(decoder, h, recog_args, timer=None):
     """Greedy search implementation for transformer-transducer.
 
     Args:
@@ -52,10 +52,19 @@ def greedy_search(decoder, h, recog_args):
 
     cache = {}
 
+    if timer:
+        timer.tic("dec")
     y, state, _ = decoder.score(hyp, cache, init_tensor)
 
+    if timer:
+        timer.tic("utt total")
     for i, hi in enumerate(h):
+        if timer:
+            timer.tic("utt frame")
+
         ytu = torch.log_softmax(decoder.joint(hi, y[0]), dim=-1)
+        if timer:
+            timer.toc("dec")
         logp, pred = torch.max(ytu, dim=-1)
 
         if pred != decoder.blank:
@@ -64,7 +73,13 @@ def greedy_search(decoder, h, recog_args):
 
             hyp.dec_state = state
 
+            if timer:
+                timer.tic("dec")
             y, state, _ = decoder.score(hyp, cache, init_tensor)
+        if timer:
+            timer.toc("utt frame")
+    if timer:
+        timer.toc("utt total")
 
     return [asdict(hyp)]
 
@@ -120,8 +135,8 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
             top_k = ytu[1:].topk(beam_k, dim=-1) # exclude the choice of blank, reason of plus 1 shows below
 
             ytu = (
-                torch.cat((top_k[0], ytu[0:1])), # force add blank as an optional choice
-                torch.cat((top_k[1] + 1, blank_tensor)),
+                torch.cat((top_k[0], ytu[0:1])).cpu(), # force add blank as an optional choice
+                torch.cat((top_k[1] + 1, blank_tensor)).cpu(),
             )
 
             if rnnlm:
@@ -166,8 +181,8 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     else:
         nbest_hyps = sorted(kept_hyps, key=lambda x: x.score, reverse=True)[:nbest]
     if timer: timer.toc("utt total")
-    return [asdict(n) for n in nbest_hyps]
-
+    # return [asdict(n) for n in nbest_hyps]
+    return nbest_hyps
 
 def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
     """Time synchronous beam search implementation.
@@ -628,7 +643,7 @@ def search_interface(decoder, h, recog_args, rnnlm, timer=None):
         decoder.att[0].reset()
 
     if recog_args.beam_size <= 1:
-        nbest_hyps = greedy_search(decoder, h, recog_args)
+        nbest_hyps = greedy_search(decoder, h, recog_args, timer)
     elif recog_args.search_type == "default":
         nbest_hyps = default_beam_search(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "nsc":
