@@ -302,7 +302,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
     return [asdict(n) for n in nbest_hyps]
 
 
-def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None):
+def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     """Alignment-length synchronous beam search implementation.
 
     Based on https://ieeexplore.ieee.org/document/9053040
@@ -350,8 +350,12 @@ def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None):
         lm_layers = len(lm_model.rnn)
 
     cache = {}
+    if timer:
+        timer.tic("utt total")
 
     for i in range(h_length + u_max):
+        if timer:
+            timer.tic("utt frame")
         A = []
 
         B_ = []
@@ -367,6 +371,8 @@ def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None):
             h_states.append((t, h[t]))
 
         if B_:
+            if timer:
+                timer.tic("dec")
             beam_y, beam_state, beam_lm_tokens = decoder.batch_score(
                 B_, beam_state, cache, init_tensor
             )
@@ -374,6 +380,8 @@ def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None):
             h_enc = torch.stack([h[1] for h in h_states])
 
             beam_logp = F.log_softmax(decoder.joint(h_enc, beam_y), dim=-1)
+            if timer:
+                timer.toc("dec")
             beam_topk = beam_logp[:, 1:].topk(beam, dim=-1)
 
             if rnnlm:
@@ -417,11 +425,15 @@ def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None):
 
             B = sorted(A, key=lambda x: x.score, reverse=True)[:beam]
             B = recombine_hyps(B)
+        if timer:
+            timer.toc("utt frame")
 
     if final:
         nbest_hyps = sorted(final, key=lambda x: x.score, reverse=True)[:nbest]
     else:
         nbest_hyps = B[:nbest]
+    if timer:
+        timer.toc("utt total")
 
     return [asdict(n) for n in nbest_hyps]
 
@@ -651,7 +663,7 @@ def search_interface(decoder, h, recog_args, rnnlm, timer=None):
     elif recog_args.search_type == "tsd":
         nbest_hyps = time_sync_decoding(decoder, h, recog_args, rnnlm)
     elif recog_args.search_type == "alsd":
-        nbest_hyps = align_length_sync_decoding(decoder, h, recog_args, rnnlm)
+        nbest_hyps = align_length_sync_decoding(decoder, h, recog_args, rnnlm, timer)
     else:
         raise NotImplementedError
 
