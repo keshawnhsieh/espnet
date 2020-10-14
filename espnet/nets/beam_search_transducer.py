@@ -438,7 +438,7 @@ def align_length_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     return [asdict(n) for n in nbest_hyps]
 
 
-def nsc_beam_search(decoder, h, recog_args, rnnlm=None):
+def nsc_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     """N-step constrained beam search implementation.
 
     Based and modified from https://arxiv.org/pdf/2002.03577.pdf.
@@ -516,7 +516,11 @@ def nsc_beam_search(decoder, h, recog_args, rnnlm=None):
         )
     ]
 
+    if timer:
+        timer.tic("utt total")
     for hi in h:
+        if timer:
+            timer.tic("utt frame")
         hyps = sorted(kept_hyps, key=lambda x: len(x.yseq), reverse=True)
         kept_hyps = []
 
@@ -587,9 +591,13 @@ def nsc_beam_search(decoder, h, recog_args, rnnlm=None):
             l_tokens = [v.yseq for v in V]
 
             beam_state = decoder.create_batch_states(beam_state, l_state, l_tokens)
+            if timer:
+                timer.tic("dec")
             beam_y, beam_state, beam_lm_tokens = decoder.batch_score(
                 V, beam_state, cache, init_tensor
             )
+            if timer:
+                timer.toc("dec")
 
             if rnnlm:
                 beam_lm_states = create_lm_batch_state(
@@ -630,11 +638,14 @@ def nsc_beam_search(decoder, h, recog_args, rnnlm=None):
                         v.lm_scores = beam_lm_scores[i]
 
         kept_hyps = sorted((S + V), key=lambda x: x.score, reverse=True)[:beam]
+        if timer:
+            timer.toc("utt frame")
 
     nbest_hyps = sorted(kept_hyps, key=lambda x: (x.score / len(x.yseq)), reverse=True)[
         :nbest
     ]
-
+    if timer:
+        timer.toc("utt total")
     return [asdict(n) for n in nbest_hyps]
 
 
@@ -659,7 +670,7 @@ def search_interface(decoder, h, recog_args, rnnlm, timer=None):
     elif recog_args.search_type == "default":
         nbest_hyps = default_beam_search(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "nsc":
-        nbest_hyps = nsc_beam_search(decoder, h, recog_args, rnnlm)
+        nbest_hyps = nsc_beam_search(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "tsd":
         nbest_hyps = time_sync_decoding(decoder, h, recog_args, rnnlm)
     elif recog_args.search_type == "alsd":
