@@ -1,6 +1,7 @@
 """Search algorithms for transducer models."""
 
 import numpy as np
+import numba
 
 import logging
 
@@ -186,6 +187,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     return [asdict(n) for n in nbest_hyps]
     # return nbest_hyps
 
+@numba.jit(nopython=True, parallel=True)
 def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     """Time synchronous beam search implementation.
 
@@ -255,7 +257,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 C, beam_state, cache, init_tensor
             )
 
-            beam_logp = F.log_softmax(decoder.joint(h_enc, beam_y), dim=-1)
+            beam_logp = F.log_softmax(decoder.joint(h_enc, beam_y), dim=-1).cpu()
             beam_topk = beam_logp[:, 1:].topk(beam, dim=-1)
             if timer:
                 timer.toc("dec")
