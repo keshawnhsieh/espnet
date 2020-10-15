@@ -1060,7 +1060,7 @@ def recog(args):
                     )
                     # timing results
                     for key in timer.times.keys():
-                        logging.info("%s : %s, avg: %.4f, total: %.4f" % (key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
+                        logging.info("%s : %s, avg: %.5f, total: %.5f" % (key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
                 new_js[name] = add_results_to_json(
                     js[name], nbest_hyps, train_args.char_list
                 )
