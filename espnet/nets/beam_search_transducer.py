@@ -181,8 +181,8 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     else:
         nbest_hyps = sorted(kept_hyps, key=lambda x: x.score, reverse=True)[:nbest]
     if timer: timer.toc("utt total")
-    # return [asdict(n) for n in nbest_hyps]
-    return nbest_hyps
+    return [asdict(n) for n in nbest_hyps]
+    # return nbest_hyps
 
 def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     """Time synchronous beam search implementation.
