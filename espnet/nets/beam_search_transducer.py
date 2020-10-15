@@ -184,7 +184,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     # return [asdict(n) for n in nbest_hyps]
     return nbest_hyps
 
-def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
+def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     """Time synchronous beam search implementation.
 
     Based on https://ieeexplore.ieee.org/document/9053040
@@ -230,7 +230,12 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
 
     cache = {}
 
+    if timer:
+        timer.tic("utt total")
+
     for hi in h:
+        if timer:
+            timer.tic("utt frame")
         A = []
         C = B
 
@@ -239,12 +244,16 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
         for v in range(max_sym_exp):
             D = []
 
+            if timer:
+                timer.tic("dec")
             beam_y, beam_state, beam_lm_tokens = decoder.batch_score(
                 C, beam_state, cache, init_tensor
             )
 
             beam_logp = F.log_softmax(decoder.joint(h_enc, beam_y), dim=-1)
             beam_topk = beam_logp[:, 1:].topk(beam, dim=-1)
+            if timer:
+                timer.toc("dec")
 
             seq_A = [h.yseq for h in A]
 
@@ -296,8 +305,12 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None):
             C = sorted(D, key=lambda x: x.score, reverse=True)[:beam]
 
         B = sorted(A, key=lambda x: x.score, reverse=True)[:beam]
+        if timer:
+            timer.toc("utt frame")
 
     nbest_hyps = sorted(B, key=lambda x: x.score, reverse=True)[:nbest]
+    if timer:
+        timer.toc("utt total")
 
     return [asdict(n) for n in nbest_hyps]
 
@@ -672,7 +685,7 @@ def search_interface(decoder, h, recog_args, rnnlm, timer=None):
     elif recog_args.search_type == "nsc":
         nbest_hyps = nsc_beam_search(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "tsd":
-        nbest_hyps = time_sync_decoding(decoder, h, recog_args, rnnlm)
+        nbest_hyps = time_sync_decoding(decoder, h, recog_args, rnnlm, timer)
     elif recog_args.search_type == "alsd":
         nbest_hyps = align_length_sync_decoding(decoder, h, recog_args, rnnlm, timer)
     else:
