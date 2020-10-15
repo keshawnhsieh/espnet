@@ -2,6 +2,8 @@
 
 import numpy as np
 
+import logging
+
 from dataclasses import asdict
 from dataclasses import dataclass
 
@@ -291,13 +293,16 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 if timer:
                     timer.tic("non blank hyp add")
                 for i, hyp in enumerate(C):
+                    logging.info("C loops : ", len(C) )
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
+                        if timer: timer.tic("add hyps")
                         new_hyp = Hypothesis(
                             score=(hyp.score + float(logp)),
                             yseq=(hyp.yseq + [int(k)]),
                             dec_state=decoder.select_state(beam_state, i),
                             lm_state=hyp.lm_state,
                         )
+                        if timer: timer.toc("add hyps")
 
                         if rnnlm:
                             new_hyp.score += recog_args.lm_weight * beam_lm_scores[i, k]
