@@ -38,7 +38,7 @@ class Timer(object):
             all_time (float): accumulated time (seconds)
         '''
         if not key in self.times:
-            return ''
+            return None
         # return self.times[key]['all'] if key in self.times else None
         return ','.join(['%.4f' % x for x in self.times[key]['hist']])
     def avg(self, key):

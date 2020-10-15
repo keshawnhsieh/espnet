@@ -1059,13 +1059,8 @@ def recog(args):
                         feat, args, train_args.char_list, rnnlm,timer
                     )
                     # timing results
-                    if args.ngpu == 1:
-                        logging.info(
-                            "data transfer : %s, avg: %.4f" % (timer("data transfer"), timer.avg("data transfer")))
-                    logging.info("enc : %s, avg: %.4f" % (timer("enc"), timer.avg("enc")))
-                    logging.info("dec : %s, avg: %.4f " % (timer("dec"), timer.avg("dec")))
-                    logging.info("utt total : %s, avg: %.4f" % (timer("utt total"), timer.avg("utt total")))
-                    logging.info("utt frame : %s, avg: %.4f" % (timer("utt frame"), timer.avg("utt frame")))
+                    for key in timer.times.keys():
+                        logging.info("%s : %s, avg: %.4f" % (key, timer(key), timer.avg(key)) )
                 new_js[name] = add_results_to_json(
                     js[name], nbest_hyps, train_args.char_list
                 )

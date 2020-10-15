@@ -257,6 +257,8 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
 
             seq_A = [h.yseq for h in A]
 
+            if timer:
+                timer.tic("blank hyp add")
             for i, hyp in enumerate(C):
                 if hyp.yseq not in seq_A:
                     A.append(
@@ -273,6 +275,8 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                     A[dict_pos].score = np.logaddexp(
                         A[dict_pos].score, (hyp.score + float(beam_logp[i, 0]))
                     )
+            if timer:
+                timer.toc("blank hyp add")
 
             if v < max_sym_exp:
                 if rnnlm:
@@ -284,6 +288,8 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                         beam_lm_states, beam_lm_tokens, len(C)
                     )
 
+                if timer:
+                    timer.tic("non blank hyp add")
                 for i, hyp in enumerate(C):
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
                         new_hyp = Hypothesis(
@@ -301,10 +307,16 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                             )
 
                         D.append(new_hyp)
+                if timer:
+                    timer.toc("non blank hyp add")
 
+            if timer: timer.tic("D sort")
             C = sorted(D, key=lambda x: x.score, reverse=True)[:beam]
+            if timer: timer.toc("D sort")
 
+        if timer: timer.tic("A sort")
         B = sorted(A, key=lambda x: x.score, reverse=True)[:beam]
+        if timer: timer.toc("A sort")
         if timer:
             timer.toc("utt frame")
 
