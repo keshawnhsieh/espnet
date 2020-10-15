@@ -293,7 +293,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 if timer:
                     timer.tic("non blank hyp add")
                 for i, hyp in enumerate(C):
-                    logging.info("C loops : ", len(C) )
+                    logging.info("C loops : %d " % len(C) )
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
                         if timer: timer.tic("add hyps")
                         new_hyp = Hypothesis(
