@@ -304,6 +304,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                         new_hyp.yseq = hyp.yseq + [int(k)]
                         new_hyp.dec_state = decoder.select_state(beam_state, i)
                         new_hyp.lm_state = hyp.lm_state
+                        hyp_idx += 1
                         # new_hyp = Hypothesis(
                         #     score=(hyp.score + float(logp)),
                         #     yseq=(hyp.yseq + [int(k)]),
