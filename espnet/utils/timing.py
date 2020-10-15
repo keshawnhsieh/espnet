@@ -41,6 +41,8 @@ class Timer(object):
             return None
         # return self.times[key]['all'] if key in self.times else None
         return ','.join(['%.4f' % x for x in self.times[key]['hist']])
+    def count(self, key):
+        return self.times[key]['count'] if key in self.times else None
     def avg(self, key):
         '''
         - Get average time
