@@ -210,6 +210,9 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
 
     beam_state = decoder.init_state(torch.zeros((beam, decoder.dunits)))
 
+    PreHypothesis = [Hypothesis(yseq=[decoder.blank], score=0.0, dec_state=decoder.select_state(beam_state, 0)) for _ in range(beam ** 2 * len(h) * max_sym_exp)]
+    hyp_idx =  0
+
     B = [
         Hypothesis(
             yseq=[decoder.blank],
@@ -296,12 +299,17 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                     # logging.info("C loops : %d " % len(C) )
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
                         if timer: timer.tic("add hyps")
-                        new_hyp = Hypothesis(
-                            score=(hyp.score + float(logp)),
-                            yseq=(hyp.yseq + [int(k)]),
-                            dec_state=decoder.select_state(beam_state, i),
-                            lm_state=hyp.lm_state,
-                        )
+                        new_hyp = PreHypothesis[hyp_idx]
+                        new_hyp.score= hyp.score + float(logp)
+                        new_hyp.yseq = hyp.yseq + [int(k)]
+                        new_hyp.dec_state = decoder.select_state(beam_state, i)
+                        new_hyp.lm_state = hyp.lm_state
+                        # new_hyp = Hypothesis(
+                        #     score=(hyp.score + float(logp)),
+                        #     yseq=(hyp.yseq + [int(k)]),
+                        #     dec_state=decoder.select_state(beam_state, i),
+                        #     lm_state=hyp.lm_state,
+                        # )
 
 
                         if rnnlm:
