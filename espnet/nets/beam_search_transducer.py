@@ -187,7 +187,7 @@ def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     return [asdict(n) for n in nbest_hyps]
     # return nbest_hyps
 
-@numba.jit(nopython=True, parallel=True)
+# @numba.jit(nopython=True, parallel=True)
 def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
     """Time synchronous beam search implementation.
 
@@ -285,7 +285,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
             if timer:
                 timer.toc("blank hyp add")
 
-            if v < max_sym_exp:
+            if v < max_sym_exp -1:
                 if rnnlm:
                     beam_lm_states = create_lm_batch_state(
                         [c.lm_state for c in C], lm_type, lm_layers
@@ -298,6 +298,8 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 if timer:
                     timer.tic("non blank hyp add")
                 for i, hyp in enumerate(C):
+                    if beam_logp[:, i] > -1e-1:
+                        continue # skip blank dominate condition
                     # logging.info("C loops : %d " % len(C) )
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
                         if timer: timer.tic("add hyps")
