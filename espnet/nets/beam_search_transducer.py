@@ -298,7 +298,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 if timer:
                     timer.tic("non blank hyp add")
                 for i, hyp in enumerate(C):
-                    if beam_logp[:, i] > -1e-1:
+                    if beam_logp[i, 0] > -1e-1:
                         continue # skip blank dominate condition
                     # logging.info("C loops : %d " % len(C) )
                     for logp, k in zip(beam_topk[0][i], beam_topk[1][i] + 1):
@@ -329,6 +329,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
                 if timer:
                     timer.toc("non blank hyp add")
 
+            if not D: break
             if timer: timer.tic("D sort")
             C = sorted(D, key=lambda x: x.score, reverse=True)[:beam]
             if timer: timer.toc("D sort")
