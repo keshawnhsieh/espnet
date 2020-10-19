@@ -233,7 +233,9 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
             next_state = []
             for s, decoder in zip(dec_state, self.decoders):
                 tgt, tgt_mask = decoder(tgt, tgt_mask, cache=s)
+                if timer: timer.tic("dec state append")
                 next_state.append(tgt)
+                if timer: timer.toc("dec state append")
 
             tgt = self.after_norm(tgt[:, -1])
             if timer: timer.toc("pure dec")
