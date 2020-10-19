@@ -178,7 +178,7 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
 
         return y, new_state, lm_tokens
 
-    def batch_score(self, hyps, batch_states, cache, init_tensor=None):
+    def batch_score(self, hyps, batch_states, cache, init_tensor=None, timer=None):
         """Forward batch one step.
 
         Args:
