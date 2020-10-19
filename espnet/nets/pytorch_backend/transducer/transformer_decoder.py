@@ -227,7 +227,7 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
                 [p[1] for p in process],
                 tokens,
             )
-
+            if timer: timer.tic("pure dec")
             tgt = self.embed(b_tokens)
 
             next_state = []
@@ -236,6 +236,7 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
                 next_state.append(tgt)
 
             tgt = self.after_norm(tgt[:, -1])
+            if timer: timer.toc("pure dec")
 
         j = 0
         for i in range(final_batch):

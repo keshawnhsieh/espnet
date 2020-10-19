@@ -254,7 +254,7 @@ def time_sync_decoding(decoder, h, recog_args, rnnlm=None, timer=None):
             if timer:
                 timer.tic("dec")
             beam_y, beam_state, beam_lm_tokens = decoder.batch_score(
-                C, beam_state, cache, init_tensor
+                C, beam_state, cache, init_tensor, timer
             )
 
             beam_logp = F.log_softmax(decoder.joint(h_enc, beam_y), dim=-1).cpu()
