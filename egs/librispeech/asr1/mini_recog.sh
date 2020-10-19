@@ -3,10 +3,13 @@
 #ffmpeg -i /export/a15/vpanayotov/data/LibriSpeech/dev-clean/1272/128104/1272-128104-0000.flac /export/a15/vpanayotov/data/LibriSpeech/dev-clean/1272/128104/1272-128104-0000.wav
 # cp 1272-128104-0000.wav 1272-128104-0001.wav ....
 
+# upload mini_decode
+# chmod +x mini_recog.sh
+# ./mini_recog.sh --stage 1
 
 stage=0
 stop_stage=100
-ngpu=0
+ngpu=1
 do_delta=false
 cmvn=data/train_960/cmvn.ark
 
