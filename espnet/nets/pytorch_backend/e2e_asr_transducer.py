@@ -558,6 +558,23 @@ class E2E(ASRInterface, torch.nn.Module):
 
         return self.loss
 
+    def encode_transformer_batch(self, x):
+        """Encode acoustic features.
+
+        Args:
+            x (ndarray): input acoustic feature (T, D)
+
+        Returns:
+            x (torch.Tensor): encoded features (T, attention_dim)
+
+        """
+        self.eval()
+
+        x = torch.as_tensor(x)
+        enc_output, _ = self.encoder(x, None)
+
+        return enc_output.squeeze(0)
+
     def encode_transformer(self, x):
         """Encode acoustic features.
 
@@ -629,6 +646,42 @@ class E2E(ASRInterface, torch.nn.Module):
         params = [decoder, h, recog_args, rnnlm, timer]
 
         nbest_hyps = search_interface(*params)
+
+        return nbest_hyps
+
+    def recognize_batch(self, x, recog_args, char_list=None, rnnlm=None, timer=None):
+        """Recognize input features.
+
+        Args:
+            x (ndarray): input acoustic feature (T, D)
+            recog_args (namespace): argument Namespace containing options
+            char_list (list): list of characters
+            rnnlm (torch.nn.Module): language model module
+
+        Returns:
+            nbest_hyps (list): n-best decoding results
+
+        """
+        if "transformer" in self.etype:
+            if  timer:
+                timer.tic("enc")
+            h = self.encode_transformer_batch(x) # make it batch x -> batch h , h : (bsz, max_len, hdim)
+            if  timer:
+                timer.toc("enc")
+        else:
+            h = self.encode_rnn(x)
+
+        if "transformer" in self.dtype:
+            decoder = self.decoder
+        else:
+            decoder = self.dec
+
+        params = [decoder, h, recog_args, rnnlm, timer]  # batch h
+
+        from espnet.nets.beam_search_transducer import greedy_search_batch
+
+        # nbest_hyps = search_interface(*params)
+        nbest_hyps = greedy_search_batch(decoder, h, recog_args)
 
         return nbest_hyps
 

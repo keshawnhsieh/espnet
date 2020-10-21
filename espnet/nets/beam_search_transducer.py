@@ -57,19 +57,21 @@ def greedy_search(decoder, h, recog_args, timer=None):
 
     if timer:
         timer.tic("dec")
-    y, state, _ = decoder.score(hyp, cache, init_tensor)
-
+    y, state, _ = decoder.score(hyp, cache, init_tensor) # list of hyp , list of cache -> list of y, list of state
+    # y: (bsz, dim), state: (bsz, number of dec layers, dim)
     if timer:
         timer.tic("utt total")
-    for i, hi in enumerate(h):
+    for i, hi in enumerate(h):# first loop, frame sync, if h is batch : h.transpose(0, 1) (bsz, max_len, hdim-> (max_len, bsz, hdim)
         if timer:
             timer.tic("utt frame")
 
-        ytu = torch.log_softmax(decoder.joint(hi, y[0]), dim=-1)
+        ytu = torch.log_softmax(decoder.joint(hi, y[0]), dim=-1) # hi : (bsz, hdim), y: (bsz, dim), ytu: (bsz, odim)
         if timer:
             timer.toc("dec")
         logp, pred = torch.max(ytu, dim=-1)
 
+        # insert new for loop handle batch hyp update
+        #for i, (pred, logp, hyp, state) in enumrate(zip(preds, logps, hyp_batch, state_batch))
         if pred != decoder.blank:
             hyp.yseq.append(int(pred))
             hyp.score += float(logp)
@@ -86,6 +88,68 @@ def greedy_search(decoder, h, recog_args, timer=None):
 
     return [asdict(hyp)]
 
+def greedy_search_batch(decoder, h, recog_args, timer=None): # batch h (bsz, max_len , hdim)
+    """Greedy search implementation for transformer-transducer.
+
+    Args:
+        decoder (class): decoder class
+        h (torch.Tensor): encoder hidden state sequences (maxlen_in, Henc)
+        recog_args (Namespace): argument Namespace containing options
+
+    Returns:
+        hyp (list of dicts): 1-best decoding results
+
+    """
+    # init_tensor not used?
+    # init_tensor = h.unsqueeze(0)
+    # dec_state = decoder.init_state(init_tensor)
+    init_tensor = h
+    dec_state = decoder.init_state(init_tensor)
+
+    # hyp list of batch size
+    bsz= h.size(0)
+    max_len  =h.size(1)
+    hyp_batch = [Hypothesis(score=0.0, yseq=[decoder.blank], dec_state=dec_state) for _ in range(bsz)]  #list of hyp , equal batch size
+
+    cache_batch = [{} for _ in range(bsz)]
+    # seems cache is useless in greedy search mode, decoder inf execute in every token expanding loop, so no cache will be avaliable
+
+    if timer:
+        timer.tic("dec")
+    #init_tensor not used in func
+    y_batch, state_batch, _ = decoder.score_batch(hyp_batch, cache_batch, init_tensor) # list of hyp , list of cache -> list of y, list of state
+    # y: (bsz, dim), state: (bsz, layers, max_len, dim)
+    if timer:
+        timer.tic("utt total")
+    # for i, hi in enumerate(h):# first loop, frame sync, if h is batch : h.transpose(0, 1) (bsz, max_len, hdim-> (max_len, bsz, hdim)
+    # processed frame numbers
+    idx_batch= torch.zeros(bsz, dtype=torch.int)
+    while  not (idx_batch ==max_len).all():
+        for ib in range(bsz): # this loop should be optimized
+            logp, pred=  .0, decoder.blank
+            if idx_batch[ib] < max_len:
+                ytu = torch.log_softmax(decoder.joint(h[ib, idx_batch[ib]].unsqueeze(0), y_batch[ib].unsqueeze(0)), dim=-1)
+                logp, pred= torch.max(ytu, dim=-1)
+                idx_batch[ib] += 1
+
+                while idx_batch[ib] < max_len and pred == decoder.blank:
+
+                    ytu = torch.log_softmax(decoder.joint(h[ib, idx_batch[ib]].unsqueeze(0), y_batch[ib].unsqueeze(0)), dim=-1)
+                    logp, pred = torch.max(ytu, dim=-1)
+                    idx_batch[ib] += 1
+
+                if idx_batch[ib] < max_len: # escape while loop because of pred != blank, idx plus 1
+                    idx_batch[ib] += 1
+
+            # if do find the non blank output before reach end of seq
+            if idx_batch[ib] < max_len or pred != decoder.blank:
+                hyp_batch[ib].yseq.append(int(pred))
+                hyp_batch[ib].score += float(logp)
+                hyp_batch[ib].dec_state = state_batch[ib]
+
+        y_batch, state_batch, _ = decoder.score_batch(hyp_batch, cache_batch, init_tensor)
+
+    return [[asdict(hyp)] for hyp in hyp_batch]
 
 def default_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     """Beam search implementation.

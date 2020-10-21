@@ -1087,6 +1087,10 @@ def recog(args):
                     if args.num_encs == 1
                     else load_inputs_and_targets(batch)
                 )
+                #  to numpy matrix
+                feats = np.array(feats)
+                if args.ngpu == 1:
+                    feats =torch.from_numpy(feats).float().cuda()
                 if args.streaming_mode == "window" and args.num_encs == 1:
                     raise NotImplementedError
                 elif args.streaming_mode == "segment" and args.num_encs == 1:

@@ -1,5 +1,7 @@
 """Decoder definition for transformer-transducer models."""
 
+import numpy as np
+
 import torch
 
 from espnet.nets.pytorch_backend.nets_utils import get_activation
@@ -11,7 +13,7 @@ from espnet.nets.pytorch_backend.transducer.utils import pad_batch_state
 from espnet.nets.pytorch_backend.transducer.utils import pad_sequence
 
 from espnet.nets.pytorch_backend.transformer.layer_norm import LayerNorm
-from espnet.nets.pytorch_backend.transformer.mask import subsequent_mask
+from espnet.nets.pytorch_backend.transformer.mask import subsequent_mask, target_mask
 
 from espnet.nets.transducer_decoder_interface import TransducerDecoderInterface
 
@@ -177,6 +179,72 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
             cache[str_yseq] = (y, new_state)
 
         return y, new_state, lm_tokens
+
+    def score_batch(self, hyp_batch, cache_batch, init_tensor=None): # make hyp batch, cache become list
+        """Forward one step.
+
+        hyp_batch: list of Hypothesis
+        cache_batch: list of dict
+        Args:
+            hyp (dataclass): hypothesis
+            cache (dict): states cache
+
+        Returns:
+            y (torch.Tensor): decoder outputs (1, dec_dim)
+            (list): decoder and attention states
+                [L x (1, max_len, dec_dim)]
+            lm_tokens (torch.Tensor): token id for LM (1)
+
+        """
+        # designed only for greedy search
+
+        # length of hyps is not equal
+        # tgt will be (bsz, seq_len), cache: (bsz, )
+        tokens = [hyp.yseq for hyp in hyp_batch]
+        token_len = [sum(np.array(t)[1:] !=0 ) + 1 for t in tokens]
+        batch = len(tokens)
+        tokens  =pad_sequence(tokens, self.blank)
+        b_tokens =to_device(self, torch.LongTensor(tokens).view(batch, -1))
+        #after padding
+        # [[x,x,x,x,x,x]
+        #  [0,0,x,x,x,x]
+        #  [0,x,x,x,x,x]]
+
+        tgt_mask = to_device(
+            self,  # b_token : (bsz, max_len)
+            target_mask(b_tokens, self.blank),
+        )
+
+        #what we need : dec_state -> (layers, bsz, max-token_len -1 , dim)
+        max_len = len(tokens[0])
+        if max_len == 1: # case [0, 0, 0, ...], init case , all the token length equal 1
+            dec_state = [None] * len(self.decoders)
+        else:
+            dec_state = []
+            for layer in range(len(self.decoders)):
+                dec_state.append(pad_batch_state(
+                    [hyp.dec_state[layer] if hyp.dec_state[layer] is not None else torch.zeros([0, self.dunits]) for hyp in hyp_batch], max_len, self.blank
+                ))
+
+        tgt = self.embed(b_tokens)
+        # lm_tokens = tgt[:, -1]   #lm_tokens is returned directly, not care
+
+        next_state = []
+        for s, decoder in zip(dec_state, self.decoders):
+            tgt, tgt_mask = decoder(tgt, tgt_mask, cache=s)
+            next_state.append(tgt)
+
+        batch_y = self.after_norm(tgt[:, -1]) # (bsz, 1, odim)
+
+        lm_tokens = to_device(
+            self, torch.LongTensor([h.yseq[-1] for h in hyp_batch]).view(batch)
+        )
+        # output dec state of this loop, select kept dec state to kept new hyp
+        # with shape of (layers, bsz, token_max_len, dim)
+        batch_state =[]
+        for ib in range(batch):# (layers, bsz, max_len, dim) -> (bsz, layers, max_len, dim)
+            batch_state.append([s[ib][-token_len[ib]:] for s in next_state]) # trim pad length
+        return batch_y, batch_state, lm_tokens
 
     def batch_score(self, hyps, batch_states, cache, init_tensor=None, timer=None):
         """Forward batch one step.
