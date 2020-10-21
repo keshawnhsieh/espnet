@@ -990,7 +990,7 @@ def recog(args):
     )
     from espnet.utils.timing import Timer
 
-    timer = Timer()
+    timer_field = ["enc", "utt total", "dec total"]
     if args.batchsize == 0:
         with torch.no_grad():
             for idx, name in enumerate(js.keys(), 1):
@@ -1052,12 +1052,18 @@ def recog(args):
                         feat, args, train_args.char_list
                     )
                 else:
+                    timer = Timer()
                     nbest_hyps = model.recognize(
                         feat, args, train_args.char_list, rnnlm,timer
                     )
                 new_js[name] = add_results_to_json(
                     js[name], nbest_hyps, train_args.char_list
                 )
+                # timing results
+                for key in timer.times.keys():
+                    if key not in timer_field: continue
+                    logging.info("%s : %s, avg: %.7f, total: %.7f" % (
+                        key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
 
     else:
 
@@ -1113,6 +1119,7 @@ def recog(args):
                                 nbest_hyps[n]["score"] += hyps[n]["score"]
                     nbest_hyps = [nbest_hyps]
                 else:
+                    timer= Timer()
                     nbest_hyps = model.recognize_batch(
                         feats, args, train_args.char_list, rnnlm=rnnlm, timer=timer
                     )
@@ -1122,11 +1129,11 @@ def recog(args):
                     new_js[name] = add_results_to_json(
                         js[name], nbest_hyp, train_args.char_list
                     )
-
-    # timing results
-    for key in timer.times.keys():
-        logging.info("%s : %s, avg: %.7f, total: %.7f" % (
-        key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
+                # timing results
+                for key in timer.times.keys():
+                    if key not in timer_field: continue
+                    logging.info("%s : %s, avg: %.7f, total: %.7f" % (
+                        key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
 
     with open(args.result_label, "wb") as f:
         f.write(
