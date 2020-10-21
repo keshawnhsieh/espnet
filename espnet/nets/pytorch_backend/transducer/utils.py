@@ -236,14 +236,14 @@ def check_state(state, max_len, pad_token):
     if state is None or max_len < 1 or state[0].size(1) == max_len:
         return state
 
-    curr_len = state[0].size(1)
+    curr_len = state[0].size(1) # cached state has multi decoder layer caches
 
     if curr_len > max_len:
         trim_val = int(state[0].size(1) - max_len)
 
         for i, s in enumerate(state):
             state[i] = s[:, trim_val:, :]
-    else:
+    else: # pad mode
         layers = len(state)
         ddim = state[0].size(2)
 

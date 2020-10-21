@@ -141,7 +141,7 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
 
         return z
 
-    def score(self, hyp, cache, init_tensor=None):
+    def score(self, hyp, cache, init_tensor=None): # make hyp batch, cache become list
         """Forward one step.
 
         Args:
@@ -155,11 +155,16 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
             lm_tokens (torch.Tensor): token id for LM (1)
 
         """
+        # tgt will be (bsz, seq_len), cache: (bsz, )
         tgt = to_device(self, torch.tensor(hyp.yseq).unsqueeze(0))
         lm_tokens = tgt[:, -1]
 
         str_yseq = "".join([str(x) for x in hyp.yseq])
+        # str_yseq =map(hyp_batch, lambda hyp: "".join([str(x) for x in hyp.yseq]))
 
+        # find = str_yseq in [x.keys() for x in cache]
+        #select find == 0: do inference, tgt= tgt[noseen idx]
+        # find==1: use history record
         if str_yseq in cache:
             y, new_state = cache[str_yseq]
         else:
@@ -173,9 +178,13 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
             for s, decoder in zip(state, self.decoders):
                 tgt, tgt_mask = decoder(tgt, tgt_mask, cache=s)
                 new_state.append(tgt)
+            # new_state: (number layers, bsz, dim)
 
             y = self.after_norm(tgt[:, -1])
 
+            # str_yseq[noseen idx], cache[noseen idx], new_state.transpose(0,1), y
+            #for i, idx in enurmate(noseen_idx):
+            #   cache[idx][str_yseq[idx]] = (y[i], new_state[i])
             cache[str_yseq] = (y, new_state)
 
         return y, new_state, lm_tokens
@@ -284,21 +293,23 @@ class DecoderTT(TransducerDecoderInterface, torch.nn.Module):
             b_tokens = to_device(self, torch.LongTensor(tokens).view(batch, -1))
 
             tgt_mask = to_device(
-                self,
+                self, #b_token : (bsz, max_len)
                 subsequent_mask(b_tokens.size(-1)).unsqueeze(0).expand(batch, -1, -1),
             )
 
-            dec_state = self.init_state()
+            dec_state = self.init_state() # [none] * len(self.decoders)
 
             dec_state = self.create_batch_states(
                 dec_state,
-                [p[1] for p in process],
+                [p[1] for p in process], #p[1] : all hyp's dec_state, (bsz, dec layers, max_len , dim)
                 tokens,
             )
             if timer: timer.tic("pure dec")
             tgt = self.embed(b_tokens)
+            #tgt: (bsz, max_len, dim)
+            # dec_state: (dec_layers, bsz, length = max_len-1?, dim)
 
-            next_state = []
+            next_state = [] # (layers, bsz, max_len, dim)
             for s, decoder in zip(dec_state, self.decoders):
                 tgt, tgt_mask = decoder(tgt, tgt_mask, cache=s)
                 if timer: timer.tic("dec state append")

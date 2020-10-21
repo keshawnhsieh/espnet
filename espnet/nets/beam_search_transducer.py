@@ -36,7 +36,7 @@ class Hypothesis:
     lm_scores: torch.Tensor = None
 
 
-def greedy_search(decoder, h, recog_args, timer=None):
+def greedy_search(decoder, h, recog_args, timer=None): # batch h (bsz, max_len , hdim)
     """Greedy search implementation for transformer-transducer.
 
     Args:
@@ -48,10 +48,11 @@ def greedy_search(decoder, h, recog_args, timer=None):
         hyp (list of dicts): 1-best decoding results
 
     """
+    # init_tensor not used?
     init_tensor = h.unsqueeze(0)
-    dec_state = decoder.init_state(init_tensor)
+    dec_state = decoder.init_state(init_tensor)# [None] * len(self.decoders)
 
-    hyp = Hypothesis(score=0.0, yseq=[decoder.blank], dec_state=dec_state)
+    hyp = Hypothesis(score=0.0, yseq=[decoder.blank], dec_state=dec_state)  #list of hyp , equal batch size
 
     cache = {}
 
@@ -757,7 +758,7 @@ def nsc_beam_search(decoder, h, recog_args, rnnlm=None, timer=None):
     return [asdict(n) for n in nbest_hyps]
 
 
-def search_interface(decoder, h, recog_args, rnnlm, timer=None):
+def search_interface(decoder, h, recog_args, rnnlm, timer=None): #batch h
     """Select and run search algorithms.
 
     Args:

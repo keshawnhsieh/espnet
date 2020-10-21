@@ -637,7 +637,7 @@ class E2E(ASRInterface, torch.nn.Module):
         if "transformer" in self.etype:
             if  timer:
                 timer.tic("enc")
-            h = self.encode_transformer(x)
+            h = self.encode_transformer(x) # make it batch x -> batch h
             if  timer:
                 timer.toc("enc")
         else:
@@ -648,7 +648,7 @@ class E2E(ASRInterface, torch.nn.Module):
         else:
             decoder = self.dec
 
-        params = [decoder, h, recog_args, rnnlm, timer]
+        params = [decoder, h, recog_args, rnnlm, timer]  # batch h
 
         nbest_hyps = search_interface(*params)
 
