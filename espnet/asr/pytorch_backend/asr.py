@@ -998,6 +998,8 @@ def recog(args):
 
                 batch = [(name, js[name])]
                 feat = load_inputs_and_targets(batch)
+                #logging #frame info
+                logging.info(name + " #frames : %d" , len(feat[0][0]))
                 feat = (
                     feat[0][0]
                     if args.num_encs == 1
