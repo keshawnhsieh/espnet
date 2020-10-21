@@ -990,11 +990,12 @@ def recog(args):
     )
     from espnet.utils.timing import Timer
 
+    timer = Timer()
     if args.batchsize == 0:
         with torch.no_grad():
             for idx, name in enumerate(js.keys(), 1):
                 logging.info("(%d/%d) decoding " + name, idx, len(js.keys()))
-                timer = Timer()
+
                 batch = [(name, js[name])]
                 feat = load_inputs_and_targets(batch)
                 feat = (
@@ -1058,9 +1059,6 @@ def recog(args):
                     nbest_hyps = model.recognize(
                         feat, args, train_args.char_list, rnnlm,timer
                     )
-                    # timing results
-                    for key in timer.times.keys():
-                        logging.info("%s : %s, avg: %.7f, total: %.7f" % (key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
                 new_js[name] = add_results_to_json(
                     js[name], nbest_hyps, train_args.char_list
                 )
@@ -1124,7 +1122,7 @@ def recog(args):
                     nbest_hyps = [nbest_hyps]
                 else:
                     nbest_hyps = model.recognize_batch(
-                        feats, args, train_args.char_list, rnnlm=rnnlm
+                        feats, args, train_args.char_list, rnnlm=rnnlm, timer=timer
                     )
 
                 for i, nbest_hyp in enumerate(nbest_hyps):
@@ -1132,6 +1130,11 @@ def recog(args):
                     new_js[name] = add_results_to_json(
                         js[name], nbest_hyp, train_args.char_list
                     )
+
+    # timing results
+    for key in timer.times.keys():
+        logging.info("%s : %s, avg: %.7f, total: %.7f" % (
+        key, timer(key), timer.avg(key), timer.avg(key) * timer.count(key)))
 
     with open(args.result_label, "wb") as f:
         f.write(

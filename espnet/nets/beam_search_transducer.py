@@ -114,13 +114,11 @@ def greedy_search_batch(decoder, h, recog_args, timer=None): # batch h (bsz, max
     cache_batch = [{} for _ in range(bsz)]
     # seems cache is useless in greedy search mode, decoder inf execute in every token expanding loop, so no cache will be avaliable
 
-    if timer:
-        timer.tic("dec")
+    if timer: timer.tic("dec total")
     #init_tensor not used in func
     y_batch, state_batch, _ = decoder.score_batch(hyp_batch, cache_batch, init_tensor) # list of hyp , list of cache -> list of y, list of state
     # y: (bsz, dim), state: (bsz, layers, max_len, dim)
-    if timer:
-        timer.tic("utt total")
+
     # for i, hi in enumerate(h):# first loop, frame sync, if h is batch : h.transpose(0, 1) (bsz, max_len, hdim-> (max_len, bsz, hdim)
     # processed frame numbers
     idx_batch= torch.zeros(bsz, dtype=torch.int)
@@ -148,6 +146,7 @@ def greedy_search_batch(decoder, h, recog_args, timer=None): # batch h (bsz, max
                 hyp_batch[ib].dec_state = state_batch[ib]
 
         y_batch, state_batch, _ = decoder.score_batch(hyp_batch, cache_batch, init_tensor)
+    if timer: timer.toc("dec total")
 
     return [[asdict(hyp)] for hyp in hyp_batch]
 

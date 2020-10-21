@@ -681,7 +681,7 @@ class E2E(ASRInterface, torch.nn.Module):
         from espnet.nets.beam_search_transducer import greedy_search_batch
 
         # nbest_hyps = search_interface(*params)
-        nbest_hyps = greedy_search_batch(decoder, h, recog_args)
+        nbest_hyps = greedy_search_batch(decoder, h, recog_args, timer)
 
         return nbest_hyps
 
