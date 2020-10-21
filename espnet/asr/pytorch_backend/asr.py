@@ -1003,10 +1003,6 @@ def recog(args):
                     if args.num_encs == 1
                     else [feat[idx][0] for idx in range(model.num_encs)]
                 )
-                if args.ngpu == 1:
-                    timer.tic("data transfer")
-                    feat = torch.from_numpy(feat).cuda()
-                    timer.toc("data transfer")
                 if args.streaming_mode == "window" and args.num_encs == 1:
                     logging.info(
                         "Using streaming recognizer with window size %d frames",
@@ -1085,10 +1081,6 @@ def recog(args):
                     if args.num_encs == 1
                     else load_inputs_and_targets(batch)
                 )
-                #  to numpy matrix
-                feats = np.array(feats)
-                if args.ngpu == 1:
-                    feats =torch.from_numpy(feats).float().cuda()
                 if args.streaming_mode == "window" and args.num_encs == 1:
                     raise NotImplementedError
                 elif args.streaming_mode == "segment" and args.num_encs == 1:

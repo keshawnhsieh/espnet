@@ -14,6 +14,9 @@ from espnet.nets.beam_search_transducer import search_interface
 
 from espnet.nets.pytorch_backend.nets_utils import get_subsample
 from espnet.nets.pytorch_backend.nets_utils import make_non_pad_mask
+from espnet.nets.pytorch_backend.nets_utils import to_device
+from espnet.nets.pytorch_backend.nets_utils import to_torch_tensor
+from espnet.nets.pytorch_backend.nets_utils import pad_list
 
 from espnet.nets.pytorch_backend.rnn.attentions import att_for
 from espnet.nets.pytorch_backend.rnn.encoders import encoder_for
@@ -629,6 +632,8 @@ class E2E(ASRInterface, torch.nn.Module):
             nbest_hyps (list): n-best decoding results
 
         """
+        x = to_device(self, to_torch_tensor(x).float())
+
         if "transformer" in self.etype:
             if  timer:
                 timer.tic("enc")
@@ -649,7 +654,7 @@ class E2E(ASRInterface, torch.nn.Module):
 
         return nbest_hyps
 
-    def recognize_batch(self, x, recog_args, char_list=None, rnnlm=None, timer=None):
+    def recognize_batch(self, xs, recog_args, char_list=None, rnnlm=None, timer=None):
         """Recognize input features.
 
         Args:
@@ -662,14 +667,17 @@ class E2E(ASRInterface, torch.nn.Module):
             nbest_hyps (list): n-best decoding results
 
         """
+        xs = [to_device(self, to_torch_tensor(xx).float()) for xx in xs]
+        xs_pad = pad_list(xs, 0.0)
+
         if "transformer" in self.etype:
             if  timer:
                 timer.tic("enc")
-            h = self.encode_transformer_batch(x) # make it batch x -> batch h , h : (bsz, max_len, hdim)
+            h = self.encode_transformer_batch(xs_pad) # make it batch x -> batch h , h : (bsz, max_len, hdim)
             if  timer:
                 timer.toc("enc")
         else:
-            h = self.encode_rnn(x)
+            h = self.encode_rnn(xs_pad)
 
         if "transformer" in self.dtype:
             decoder = self.decoder
