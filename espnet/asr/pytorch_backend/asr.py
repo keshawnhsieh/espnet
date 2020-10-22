@@ -994,12 +994,10 @@ def recog(args):
     if args.batchsize == 0:
         with torch.no_grad():
             for idx, name in enumerate(js.keys(), 1):
-                logging.info("(%d/%d) decoding " + name, idx, len(js.keys()))
+                logging.info("(%d/%d) decoding " + name + "[" + str(js[name]["input"][0]["shape"][0]) + "]", idx, len(js.keys()))
 
                 batch = [(name, js[name])]
                 feat = load_inputs_and_targets(batch)
-                #logging #frame info
-                logging.info(name + " #frames : %d" , len(feat[0][0]))
                 feat = (
                     feat[0][0]
                     if args.num_encs == 1
@@ -1081,8 +1079,11 @@ def recog(args):
             keys = [keys[i] for i in sorted_index]
 
         with torch.no_grad():
+            ns =0
             for names in grouper(args.batchsize, keys, None):
                 names = [name for name in names if name]
+                ns += len(names)
+                logging.info("(%d/%d) decoding " + ",".join([name + "[" + str(js[name]["input"][0]["shape"][0]) + "]" for name in names]), ns , len(js.keys()))
                 batch = [(name, js[name]) for name in names]
                 feats = (
                     load_inputs_and_targets(batch)[0]
