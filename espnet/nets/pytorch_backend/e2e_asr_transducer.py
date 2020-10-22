@@ -576,7 +576,7 @@ class E2E(ASRInterface, torch.nn.Module):
         x = torch.as_tensor(x)
         enc_output, _ = self.encoder(x, None)
 
-        return enc_output.squeeze(0)
+        return enc_output
 
     def encode_transformer(self, x):
         """Encode acoustic features.
